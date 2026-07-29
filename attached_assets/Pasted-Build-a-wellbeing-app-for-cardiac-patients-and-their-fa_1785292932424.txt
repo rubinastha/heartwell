@@ -1,0 +1,63 @@
+Build a wellbeing app for cardiac patients and their families. Make it fully 
+functional — real data should save and persist, not just look interactive.
+
+CORE CONCEPT
+Users search or browse cardiac terms/diagnoses, save the ones relevant to 
+them as "saved words" with an optional personal note, and log daily 
+check-ins (mood, symptoms, medication adherence) that can be tagged to a 
+saved word. All of this rolls up into a timeline and a summary view.
+
+SCREENS
+
+1. Word lookup
+- Search bar to find a cardiac term or diagnosis
+- Result card: term name, a plain-language explanation (2-3 short 
+sentences), a "why this matters" note
+- "Save to my saved words" button — when saving, prompt the user for an 
+optional personal note (e.g. "this is what my cardiologist told me in 
+March") and store it alongside the saved word
+
+2. Daily check-in
+- Mood selector (3-5 simple face icons)
+- Checklist of common symptoms (chest tightness, fatigue, shortness of 
+breath, dizziness)
+- Toggle for "took medication today"
+- Option to tag the entry to one of the user's saved words
+- Optional short note field
+- Save button
+
+3. Timeline
+- A single feed combining saved words and journal entries in chronological 
+order, newest first
+- Filter chips: All / Saved words / Entries
+- Each row is clickable — clicking any entry opens a detail view showing 
+the full content: for a saved word, the explanation and any personal note; 
+for a check-in, the full mood/symptoms/medication/note data and the date 
+it was logged
+
+4. Summary
+- A date range picker (e.g. last 7 days, last 30 days, or custom range)
+- Once a range is selected, show aggregate stats calculated from check-ins 
+in that range: mood trend over time, how often each symptom was logged, 
+medication adherence rate (% of days marked "took medication"), and total 
+number of check-ins
+- Keep the visualizations simple — bar or line charts are fine
+
+5. Profile
+- A section where the user can enter and edit: their name, current 
+medications (list, with the ability to add/remove), condition or diagnosis, 
+and their doctor's name and contact info (phone/email)
+- This is a single-user profile, not a login/account system — no 
+authentication needed, just a form that saves this information
+
+STYLE
+Calm and reassuring, not clinical or alarming. Soft neutral background, one 
+accent color (teal or soft blue), generous white space, rounded corners, 
+minimal clutter. No red or warning colors for normal states. Mobile-first, 
+single-column layouts throughout, with simple bottom or side navigation 
+between the five screens listed above.
+
+SCOPE
+No login or account system. No notifications. No care-team messaging. Just 
+these five screens, working navigation between them, and real data that 
+persists.
