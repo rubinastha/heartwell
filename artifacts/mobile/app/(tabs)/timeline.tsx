@@ -1,14 +1,17 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Modal,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
@@ -30,6 +33,13 @@ const MOOD_ICONS = [
   'emoticon-happy-outline',
   'emoticon-excited-outline',
 ] as const;
+
+const ALL_SYMPTOMS = [
+  { key: 'chest_tightness', label: 'Chest tightness' },
+  { key: 'fatigue', label: 'Fatigue' },
+  { key: 'shortness_of_breath', label: 'Shortness of breath' },
+  { key: 'dizziness', label: 'Dizziness' },
+];
 
 const SYMPTOM_LABELS: Record<string, string> = {
   chest_tightness: 'Chest tightness',
@@ -60,10 +70,15 @@ function formatFullDate(iso: string): string {
 export default function TimelineScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { savedWords, checkIns, getSavedWordById } = useAppData();
+  const { savedWords, checkIns, getSavedWordById, removeWord, removeCheckIn } = useAppData();
 
   const [filter, setFilter] = useState<Filter>('all');
   const [detail, setDetail] = useState<TimelineEntry | null>(null);
+
+  // Keep detail in sync after edits
+  const refreshDetail = useCallback((entry: TimelineEntry) => {
+    setDetail(entry);
+  }, []);
 
   const entries = useMemo<TimelineEntry[]>(() => {
     const wordEntries: TimelineEntry[] = savedWords.map((w) => ({
@@ -95,6 +110,45 @@ export default function TimelineScreen() {
     { key: 'words', label: 'Saved Words' },
     { key: 'checkins', label: 'Check-ins' },
   ];
+
+  const handleDelete = useCallback(
+    (item: TimelineEntry) => {
+      const label = item.type === 'word' ? 'saved word' : 'check-in';
+      Alert.alert(
+        `Delete ${label}?`,
+        `This ${label} will be permanently removed.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => {
+              if (item.type === 'word') removeWord(item.data.id);
+              else removeCheckIn(item.data.id);
+            },
+          },
+        ],
+      );
+    },
+    [removeWord, removeCheckIn],
+  );
+
+  // Close open swipeables when another opens
+  const openSwipeableRef = useRef<Swipeable | null>(null);
+
+  const renderRightActions = useCallback(
+    (item: TimelineEntry) => (
+      <TouchableOpacity
+        style={s.swipeDeleteBtn}
+        onPress={() => handleDelete(item)}
+        activeOpacity={0.8}
+      >
+        <Feather name="trash-2" size={22} color="#fff" />
+        <Text style={s.swipeDeleteText}>Delete</Text>
+      </TouchableOpacity>
+    ),
+    [handleDelete, s],
+  );
 
   return (
     <View style={[s.container, { paddingTop: topPad }]}>
@@ -142,22 +196,37 @@ export default function TimelineScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={s.entryCard}
-            onPress={() => setDetail(item)}
-            activeOpacity={0.7}
+          <Swipeable
+            ref={(ref) => {
+              if (ref) {
+                // track for closing
+              }
+            }}
+            onSwipeableWillOpen={() => {
+              openSwipeableRef.current?.close();
+            }}
+            renderRightActions={() => renderRightActions(item)}
+            rightThreshold={60}
+            overshootRight={false}
+            containerStyle={{ marginBottom: 10 }}
           >
-            {item.type === 'word' ? (
-              <WordEntry entry={item} colors={colors} />
-            ) : (
-              <CheckInEntry
-                entry={item}
-                colors={colors}
-                getWordById={getSavedWordById}
-              />
-            )}
-            <Text style={s.entryDate}>{formatDate(item.date)}</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={s.entryCard}
+              onPress={() => setDetail(item)}
+              activeOpacity={0.7}
+            >
+              {item.type === 'word' ? (
+                <WordEntry entry={item} colors={colors} />
+              ) : (
+                <CheckInEntry
+                  entry={item}
+                  colors={colors}
+                  getWordById={getSavedWordById}
+                />
+              )}
+              <Text style={s.entryDate}>{formatDate(item.date)}</Text>
+            </TouchableOpacity>
+          </Swipeable>
         )}
       />
 
@@ -169,39 +238,345 @@ export default function TimelineScreen() {
         onRequestClose={() => setDetail(null)}
       >
         {detail && (
-          <View style={[s.modalContainer, { backgroundColor: colors.background }]}>
-            <View style={s.modalHeader}>
-              <TouchableOpacity
-                style={s.closeBtn}
-                onPress={() => setDetail(null)}
-              >
-                <Feather name="x" size={22} color={colors.foreground} />
-              </TouchableOpacity>
-              <Text style={s.modalHeaderLabel}>
-                {detail.type === 'word' ? 'Saved Word' : 'Check-in'}
-              </Text>
-              <View style={{ width: 36 }} />
-            </View>
-            <ScrollView
-              style={{ flex: 1, paddingHorizontal: 20 }}
-              showsVerticalScrollIndicator={false}
-            >
-              {detail.type === 'word' ? (
-                <WordDetail word={detail.data as SavedWord} colors={colors} />
-              ) : (
-                <CheckInDetail
-                  checkin={detail.data as CheckIn}
-                  colors={colors}
-                  getWordById={getSavedWordById}
-                />
-              )}
-            </ScrollView>
-          </View>
+          <DetailModal
+            detail={detail}
+            colors={colors}
+            getSavedWordById={getSavedWordById}
+            onClose={() => setDetail(null)}
+            onDelete={(item) => {
+              setDetail(null);
+              handleDelete(item);
+            }}
+          />
         )}
       </Modal>
     </View>
   );
 }
+
+// ─── Detail Modal ────────────────────────────────────────────────────────────
+
+function DetailModal({
+  detail,
+  colors,
+  getSavedWordById,
+  onClose,
+  onDelete,
+}: {
+  detail: TimelineEntry;
+  colors: ReturnType<typeof useColors>;
+  getSavedWordById: (id: string) => SavedWord | undefined;
+  onClose: () => void;
+  onDelete: (item: TimelineEntry) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const s = styles(colors);
+
+  return (
+    <View style={[s.modalContainer, { backgroundColor: colors.background }]}>
+      <View style={s.modalHeader}>
+        <TouchableOpacity style={s.closeBtn} onPress={onClose}>
+          <Feather name="x" size={22} color={colors.foreground} />
+        </TouchableOpacity>
+        <Text style={s.modalHeaderLabel}>
+          {detail.type === 'word' ? 'Saved Word' : 'Check-in'}
+        </Text>
+        <View style={s.modalHeaderActions}>
+          {!editing && (
+            <TouchableOpacity
+              style={s.modalActionBtn}
+              onPress={() => setEditing(true)}
+            >
+              <Feather name="edit-2" size={17} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+          {!editing && (
+            <TouchableOpacity
+              style={[s.modalActionBtn, { backgroundColor: '#E07A7A18' }]}
+              onPress={() => onDelete(detail)}
+            >
+              <Feather name="trash-2" size={17} color="#E07A7A" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      <ScrollView style={{ flex: 1, paddingHorizontal: 20 }} showsVerticalScrollIndicator={false}>
+        {detail.type === 'word' ? (
+          editing ? (
+            <WordEditForm
+              word={detail.data as SavedWord}
+              colors={colors}
+              onSave={() => setEditing(false)}
+              onCancel={() => setEditing(false)}
+            />
+          ) : (
+            <WordDetail word={detail.data as SavedWord} colors={colors} />
+          )
+        ) : editing ? (
+          <CheckInEditForm
+            checkin={detail.data as CheckIn}
+            colors={colors}
+            onSave={() => setEditing(false)}
+            onCancel={() => setEditing(false)}
+          />
+        ) : (
+          <CheckInDetail
+            checkin={detail.data as CheckIn}
+            colors={colors}
+            getWordById={getSavedWordById}
+          />
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+// ─── Word Edit Form ──────────────────────────────────────────────────────────
+
+function WordEditForm({
+  word,
+  colors,
+  onSave,
+  onCancel,
+}: {
+  word: SavedWord;
+  colors: ReturnType<typeof useColors>;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const { updateSavedWordNote } = useAppData();
+  const [note, setNote] = useState(word.personalNote ?? '');
+  const [saving, setSaving] = useState(false);
+  const s = styles(colors);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await updateSavedWordNote(word.id, note || undefined);
+    setSaving(false);
+    onSave();
+  };
+
+  return (
+    <>
+      <Text style={s.detailTitle}>{word.term}</Text>
+      <Text style={s.detailDate}>Saved {formatFullDate(word.savedAt)}</Text>
+
+      <View style={s.detailSection}>
+        <Text style={s.detailSectionLabel}>What it means</Text>
+        <Text style={s.detailSectionText}>{word.explanation}</Text>
+      </View>
+
+      <View style={[s.detailSection, s.whyCard, { backgroundColor: colors.secondary }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          <Ionicons name="information-circle" size={18} color={colors.primary} />
+          <Text style={[s.detailSectionLabel, { color: colors.primary }]}>Why this matters</Text>
+        </View>
+        <Text style={s.detailSectionText}>{word.whyItMatters}</Text>
+      </View>
+
+      <View style={s.detailSection}>
+        <Text style={s.detailSectionLabel}>Your note</Text>
+        <TextInput
+          style={[s.editTextInput, { minHeight: 100 }]}
+          value={note}
+          onChangeText={setNote}
+          placeholder="Add a personal note…"
+          placeholderTextColor={colors.mutedForeground}
+          multiline
+          textAlignVertical="top"
+        />
+      </View>
+
+      <View style={s.editActions}>
+        <TouchableOpacity style={s.cancelBtn} onPress={onCancel}>
+          <Text style={s.cancelBtnText}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.saveBtn, saving && { opacity: 0.6 }]}
+          onPress={handleSave}
+          disabled={saving}
+        >
+          <Text style={s.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ height: 60 }} />
+    </>
+  );
+}
+
+// ─── Check-in Edit Form ──────────────────────────────────────────────────────
+
+function CheckInEditForm({
+  checkin,
+  colors,
+  onSave,
+  onCancel,
+}: {
+  checkin: CheckIn;
+  colors: ReturnType<typeof useColors>;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const { updateCheckIn } = useAppData();
+  const [mood, setMood] = useState(checkin.mood);
+  const [symptoms, setSymptoms] = useState<string[]>(checkin.symptoms);
+  const [tookMedication, setTookMedication] = useState(checkin.tookMedication);
+  const [note, setNote] = useState(checkin.note ?? '');
+  const [saving, setSaving] = useState(false);
+  const s = styles(colors);
+
+  const toggleSymptom = (key: string) => {
+    setSymptoms((prev) =>
+      prev.includes(key) ? prev.filter((s) => s !== key) : [...prev, key],
+    );
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    await updateCheckIn(checkin.id, { mood, symptoms, tookMedication, note: note || undefined });
+    setSaving(false);
+    onSave();
+  };
+
+  return (
+    <>
+      <Text style={s.detailTitle}>Edit Check-in</Text>
+      <Text style={s.detailDate}>{formatFullDate(checkin.date)}</Text>
+
+      {/* Mood */}
+      <View style={s.editSection}>
+        <Text style={s.detailSectionLabel}>How were you feeling?</Text>
+        <View style={s.moodRow}>
+          {[1, 2, 3, 4, 5].map((m) => {
+            const mc = MOOD_COLORS[m];
+            const active = mood === m;
+            return (
+              <TouchableOpacity
+                key={m}
+                style={[
+                  s.moodBtn,
+                  active && { backgroundColor: mc + '22', borderColor: mc },
+                ]}
+                onPress={() => setMood(m)}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons
+                  name={MOOD_ICONS[m] as any}
+                  size={28}
+                  color={active ? mc : colors.mutedForeground}
+                />
+                <Text style={[s.moodBtnLabel, active && { color: mc }]}>
+                  {MOOD_LABELS[m]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* Medication */}
+      <View style={s.editSection}>
+        <Text style={s.detailSectionLabel}>Medication</Text>
+        <TouchableOpacity
+          style={[
+            s.toggleRow,
+            { backgroundColor: tookMedication ? colors.secondary : colors.muted },
+          ]}
+          onPress={() => setTookMedication((v) => !v)}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={tookMedication ? 'medical' : 'medical-outline'}
+            size={18}
+            color={tookMedication ? colors.primary : colors.mutedForeground}
+          />
+          <Text
+            style={[
+              s.toggleRowText,
+              { color: tookMedication ? colors.primary : colors.mutedForeground },
+            ]}
+          >
+            {tookMedication ? 'Took medication' : 'Did not take medication'}
+          </Text>
+          <View style={{ flex: 1 }} />
+          <View
+            style={[
+              s.toggleKnob,
+              tookMedication
+                ? { backgroundColor: colors.primary, alignSelf: 'flex-end' }
+                : { backgroundColor: colors.mutedForeground },
+            ]}
+          >
+            <Feather name={tookMedication ? 'check' : 'x'} size={12} color="#fff" />
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {/* Symptoms */}
+      <View style={s.editSection}>
+        <Text style={s.detailSectionLabel}>Symptoms</Text>
+        <View style={s.symptomGrid}>
+          {ALL_SYMPTOMS.map(({ key, label }) => {
+            const active = symptoms.includes(key);
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[
+                  s.symptomChip,
+                  active && { backgroundColor: colors.primary, borderColor: colors.primary },
+                ]}
+                onPress={() => toggleSymptom(key)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    s.symptomChipText,
+                    active && { color: '#fff' },
+                  ]}
+                >
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* Note */}
+      <View style={s.editSection}>
+        <Text style={s.detailSectionLabel}>Note</Text>
+        <TextInput
+          style={[s.editTextInput, { minHeight: 90 }]}
+          value={note}
+          onChangeText={setNote}
+          placeholder="Add a note…"
+          placeholderTextColor={colors.mutedForeground}
+          multiline
+          textAlignVertical="top"
+        />
+      </View>
+
+      <View style={s.editActions}>
+        <TouchableOpacity style={s.cancelBtn} onPress={onCancel}>
+          <Text style={s.cancelBtnText}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.saveBtn, saving && { opacity: 0.6 }]}
+          onPress={handleSave}
+          disabled={saving}
+        >
+          <Text style={s.saveBtnText}>{saving ? 'Saving…' : 'Save'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ height: 60 }} />
+    </>
+  );
+}
+
+// ─── Read-only sub-components ────────────────────────────────────────────────
 
 function WordEntry({
   entry,
@@ -293,12 +668,21 @@ function WordDetail({
         <Text style={s.detailSectionText}>{word.whyItMatters}</Text>
       </View>
 
-      {word.personalNote && (
+      {word.personalNote ? (
         <View style={s.detailSection}>
           <Text style={s.detailSectionLabel}>Your note</Text>
           <Text style={s.detailSectionText}>{word.personalNote}</Text>
         </View>
+      ) : (
+        <View style={s.detailSection}>
+          <Text style={[s.detailSectionLabel]}>Your note</Text>
+          <Text style={[s.detailSectionText, { color: colors.mutedForeground, fontStyle: 'italic' }]}>
+            No note yet — tap the edit button to add one.
+          </Text>
+        </View>
       )}
+
+      <View style={{ height: 60 }} />
     </>
   );
 }
@@ -377,6 +761,8 @@ function CheckInDetail({
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
 const styles = (colors: ReturnType<typeof useColors>) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
@@ -406,11 +792,25 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     },
     filterChipTextActive: { color: '#fff' },
     list: { paddingHorizontal: 20, paddingBottom: 120 },
+    // Swipe delete
+    swipeDeleteBtn: {
+      backgroundColor: '#E07A7A',
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: 80,
+      borderRadius: 14,
+      marginLeft: 8,
+    },
+    swipeDeleteText: {
+      color: '#fff',
+      fontSize: 11,
+      fontFamily: 'Inter_500Medium',
+      marginTop: 4,
+    },
     entryCard: {
       backgroundColor: colors.card,
       borderRadius: 14,
       padding: 14,
-      marginBottom: 10,
       borderWidth: 1,
       borderColor: colors.border,
     },
@@ -488,6 +888,18 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       fontFamily: 'Inter_600SemiBold',
       color: colors.foreground,
     },
+    modalHeaderActions: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    modalActionBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: colors.secondary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     detailTitle: {
       fontSize: 24,
       fontFamily: 'Inter_700Bold',
@@ -561,5 +973,103 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     taggedBadgeText: {
       fontSize: 14,
       fontFamily: 'Inter_500Medium',
+    },
+    // Edit form
+    editSection: { marginBottom: 24 },
+    editTextInput: {
+      backgroundColor: colors.muted,
+      borderRadius: 12,
+      padding: 14,
+      fontSize: 15,
+      fontFamily: 'Inter_400Regular',
+      color: colors.foreground,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    moodRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 6,
+    },
+    moodBtn: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 10,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: colors.border,
+      backgroundColor: colors.muted,
+      gap: 4,
+    },
+    moodBtnLabel: {
+      fontSize: 10,
+      fontFamily: 'Inter_500Medium',
+      color: colors.mutedForeground,
+    },
+    toggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    toggleRowText: {
+      fontSize: 14,
+      fontFamily: 'Inter_500Medium',
+    },
+    toggleKnob: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    symptomGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    symptomChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      backgroundColor: colors.muted,
+    },
+    symptomChipText: {
+      fontSize: 13,
+      fontFamily: 'Inter_500Medium',
+      color: colors.mutedForeground,
+    },
+    editActions: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 8,
+    },
+    cancelBtn: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: 12,
+      backgroundColor: colors.muted,
+      alignItems: 'center',
+    },
+    cancelBtnText: {
+      fontSize: 15,
+      fontFamily: 'Inter_600SemiBold',
+      color: colors.mutedForeground,
+    },
+    saveBtn: {
+      flex: 2,
+      paddingVertical: 14,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+    },
+    saveBtnText: {
+      fontSize: 15,
+      fontFamily: 'Inter_600SemiBold',
+      color: '#fff',
     },
   });

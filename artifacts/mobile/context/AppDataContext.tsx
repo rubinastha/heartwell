@@ -36,11 +36,19 @@ interface AppDataContextType {
   loading: boolean;
   saveWord: (term: string, explanation: string, whyItMatters: string, personalNote?: string) => Promise<void>;
   removeWord: (id: string) => Promise<void>;
+  updateSavedWordNote: (id: string, personalNote: string | undefined) => Promise<void>;
   addCheckIn: (data: {
     mood: number;
     symptoms: string[];
     tookMedication: boolean;
     taggedWordId?: string;
+    note?: string;
+  }) => Promise<void>;
+  removeCheckIn: (id: string) => Promise<void>;
+  updateCheckIn: (id: string, data: {
+    mood: number;
+    symptoms: string[];
+    tookMedication: boolean;
     note?: string;
   }) => Promise<void>;
   updateProfile: (profile: UserProfile) => Promise<void>;
@@ -118,6 +126,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(STORAGE_KEYS.savedWords, JSON.stringify(updated));
   }
 
+  async function updateSavedWordNote(id: string, personalNote: string | undefined) {
+    const updated = savedWords.map((w) =>
+      w.id === id ? { ...w, personalNote: personalNote?.trim() || undefined } : w,
+    );
+    setSavedWords(updated);
+    await AsyncStorage.setItem(STORAGE_KEYS.savedWords, JSON.stringify(updated));
+  }
+
   async function addCheckIn(data: {
     mood: number;
     symptoms: string[];
@@ -135,6 +151,30 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       note: data.note?.trim() || undefined,
     };
     const updated = [...checkIns, newCheckIn];
+    setCheckIns(updated);
+    await AsyncStorage.setItem(STORAGE_KEYS.checkIns, JSON.stringify(updated));
+  }
+
+  async function removeCheckIn(id: string) {
+    const updated = checkIns.filter((c) => c.id !== id);
+    setCheckIns(updated);
+    await AsyncStorage.setItem(STORAGE_KEYS.checkIns, JSON.stringify(updated));
+  }
+
+  async function updateCheckIn(
+    id: string,
+    data: {
+      mood: number;
+      symptoms: string[];
+      tookMedication: boolean;
+      note?: string;
+    },
+  ) {
+    const updated = checkIns.map((c) =>
+      c.id === id
+        ? { ...c, mood: data.mood, symptoms: data.symptoms, tookMedication: data.tookMedication, note: data.note?.trim() || undefined }
+        : c,
+    );
     setCheckIns(updated);
     await AsyncStorage.setItem(STORAGE_KEYS.checkIns, JSON.stringify(updated));
   }
@@ -165,7 +205,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         loading,
         saveWord,
         removeWord,
+        updateSavedWordNote,
         addCheckIn,
+        removeCheckIn,
+        updateCheckIn,
         updateProfile,
         isWordSaved,
         getSavedWordByTerm,
