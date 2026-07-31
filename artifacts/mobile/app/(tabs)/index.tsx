@@ -99,7 +99,7 @@ export default function LookupScreen() {
     <View style={[s.container, { paddingTop: topPad }]}>
       {/* Header */}
       <View style={s.header}>
-        <Text style={s.headerTitle}>Cardiac Glossary</Text>
+        <Text style={s.headerTitle}>CardioClear</Text>
         <Text style={s.headerSub}>
           {cardiacTerms.length} terms explained in plain language
         </Text>
@@ -317,12 +317,14 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       fontFamily: 'Inter_700Bold',
       color: colors.foreground,
       marginBottom: 4,
+      textAlign: 'center',
     },
     headerSub: {
       fontSize: 14,
       fontFamily: 'Inter_400Regular',
       color: colors.mutedForeground,
       marginBottom: 16,
+      textAlign: 'center',
     },
     searchBar: {
       flexDirection: 'row',
