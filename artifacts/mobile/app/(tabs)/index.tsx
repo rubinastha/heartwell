@@ -100,9 +100,6 @@ export default function LookupScreen() {
       {/* Header */}
       <View style={s.header}>
         <Text style={s.headerTitle}>CardioClear</Text>
-        <Text style={s.headerSub}>
-          {cardiacTerms.length} terms explained in plain language
-        </Text>
         <View style={s.searchBar}>
           <Feather name="search" size={18} color={colors.mutedForeground} />
           <TextInput
@@ -315,7 +312,7 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     headerTitle: {
       fontSize: 28,
       fontFamily: 'Inter_700Bold',
-      color: colors.foreground,
+      color: colors.primary,
       marginBottom: 4,
       textAlign: 'center',
     },
