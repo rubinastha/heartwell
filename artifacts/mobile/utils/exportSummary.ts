@@ -70,9 +70,16 @@ function generateHTML(
       </tr>`;
   }).join('');
 
-  // Saved words section
+  // Saved words section — cap at 20 most recent
+  const SAVED_WORDS_LIMIT = 20;
+  const sortedSavedWords = [...savedWords].sort(
+    (a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime(),
+  );
+  const displayedWords = sortedSavedWords.slice(0, SAVED_WORDS_LIMIT);
+  const hiddenWordCount = sortedSavedWords.length - displayedWords.length;
+
   const savedWordsHTML = savedWords.length > 0
-    ? savedWords.map((w) => `
+    ? displayedWords.map((w) => `
       <div style="border: 1px solid #E5E7EB; border-radius: 10px; padding: 14px; margin-bottom: 10px; background: #F9FAFB;">
         <div style="font-weight: 600; color: #111827; font-size: 15px; margin-bottom: 4px;">${w.term}</div>
         <div style="color: #6B7280; font-size: 13px; margin-bottom: 6px;">${w.explanation}</div>
@@ -80,6 +87,9 @@ function generateHTML(
         ${w.personalNote ? `<div style="background: #EEF2FF; border-radius: 6px; padding: 8px 10px; color: #3730A3; font-size: 13px; margin-top: 6px;"><strong>My note:</strong> ${w.personalNote}</div>` : ''}
         <div style="color: #9CA3AF; font-size: 11px; margin-top: 8px;">Saved ${formatDate(w.savedAt)}</div>
       </div>`).join('')
+      + (hiddenWordCount > 0
+        ? `<p style="color: #9CA3AF; font-size: 13px; margin-top: 6px;">… and ${hiddenWordCount} more saved word${hiddenWordCount === 1 ? '' : 's'} not shown. Open HeartWell to view all.</p>`
+        : '')
     : '<p style="color: #9CA3AF; font-size: 14px;">No saved words yet.</p>';
 
   // Recent notes from check-ins
@@ -152,7 +162,7 @@ function generateHTML(
   </div>
 
   <!-- Medication Adherence -->
-  <div style="border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+  <div style="border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; margin-bottom: 20px; page-break-inside: avoid;">
     <div style="font-size: 16px; font-weight: 600; color: #111827; margin-bottom: 14px;">💊 Medication Adherence</div>
     <div style="font-size: 42px; font-weight: 700; color: ${adherenceColor}; margin-bottom: 10px;">${stats.adherence}%</div>
     <div style="background: #F3F4F6; border-radius: 5px; height: 12px; overflow: hidden; margin-bottom: 8px;">
@@ -164,7 +174,7 @@ function generateHTML(
   </div>
 
   <!-- Symptom Frequency -->
-  <div style="border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+  <div style="border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; margin-bottom: 20px; page-break-inside: avoid;">
     <div style="font-size: 16px; font-weight: 600; color: #111827; margin-bottom: 14px;">📊 Symptom Frequency</div>
     <table>
       ${symptomRows}
@@ -174,13 +184,13 @@ function generateHTML(
 
   ${checkInsWithNotes.length > 0 ? `
   <!-- Recent Notes -->
-  <div style="border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+  <div style="border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; margin-bottom: 20px; page-break-before: auto; page-break-inside: avoid;">
     <div style="font-size: 16px; font-weight: 600; color: #111827; margin-bottom: 14px;">📝 Recent Journal Notes</div>
     ${notesHTML}
   </div>` : ''}
 
   <!-- Saved Words -->
-  <div style="border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+  <div style="border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; margin-bottom: 20px; page-break-before: always;">
     <div style="font-size: 16px; font-weight: 600; color: #111827; margin-bottom: 14px;">📚 Saved Words & Terms</div>
     ${savedWordsHTML}
   </div>
