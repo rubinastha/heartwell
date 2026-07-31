@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -11,6 +13,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { useAppData } from '@/context/AppDataContext';
+import { exportHealthSummaryPDF } from '@/utils/exportSummary';
 
 type Range = 7 | 30 | 90;
 const RANGES: Range[] = [7, 30, 90];
@@ -49,11 +52,24 @@ function isSameDay(a: Date, b: Date) {
 export default function SummaryScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { checkIns } = useAppData();
+  const { checkIns, savedWords, profile } = useAppData();
   const [range, setRange] = useState<Range>(7);
+  const [exporting, setExporting] = useState(false);
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const s = styles(colors);
+
+  async function handleExport() {
+    if (!hasData) return;
+    setExporting(true);
+    try {
+      await exportHealthSummaryPDF(stats, savedWords, profile, range);
+    } catch (err: any) {
+      Alert.alert('Export failed', err?.message ?? 'Could not generate the report. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const stats = useMemo(() => {
     const cutoff = new Date();
@@ -112,7 +128,26 @@ export default function SummaryScreen() {
       >
         {/* Header */}
         <View style={s.header}>
-          <Text style={s.headerTitle}>Summary</Text>
+          <View style={s.headerTopRow}>
+            <Text style={s.headerTitle}>Summary</Text>
+            {hasData && (
+              <TouchableOpacity
+                style={[s.exportBtn, exporting && s.exportBtnDisabled]}
+                onPress={handleExport}
+                activeOpacity={0.7}
+                disabled={exporting}
+              >
+                {exporting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Feather name="share" size={14} color="#fff" />
+                    <Text style={s.exportBtnText}>Export PDF</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
           <View style={s.rangeRow}>
             {RANGES.map((r) => (
               <TouchableOpacity
@@ -284,11 +319,33 @@ const styles = (colors: ReturnType<typeof useColors>) =>
     container: { flex: 1, backgroundColor: colors.background },
     scrollContent: { paddingHorizontal: 20, paddingBottom: 120 },
     header: { paddingVertical: 20 },
+    headerTopRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 14,
+    },
     headerTitle: {
       fontSize: 28,
       fontFamily: 'Inter_700Bold',
       color: colors.foreground,
-      marginBottom: 14,
+    },
+    exportBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: colors.primary,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+    },
+    exportBtnDisabled: {
+      opacity: 0.6,
+    },
+    exportBtnText: {
+      fontSize: 13,
+      fontFamily: 'Inter_500Medium',
+      color: '#fff',
     },
     rangeRow: { flexDirection: 'row', gap: 8 },
     rangeChip: {
