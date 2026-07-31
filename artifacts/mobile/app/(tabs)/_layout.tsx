@@ -24,10 +24,6 @@ function NativeTabLayout() {
         <Icon sf={{ default: 'list.bullet', selected: 'list.bullet' }} />
         <Label>Timeline</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="summary">
-        <Icon sf={{ default: 'chart.bar', selected: 'chart.bar.fill' }} />
-        <Label>Summary</Label>
-      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: 'person', selected: 'person.fill' }} />
         <Label>Profile</Label>
@@ -112,18 +108,7 @@ function ClassicTabLayout() {
             ),
         }}
       />
-      <Tabs.Screen
-        name="summary"
-        options={{
-          title: 'Summary',
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="chart.bar" tintColor={color} size={22} />
-            ) : (
-              <Feather name="bar-chart-2" size={22} color={color} />
-            ),
-        }}
-      />
+      <Tabs.Screen name="summary" options={{ href: null }} />
       <Tabs.Screen
         name="profile"
         options={{
