@@ -1,0 +1,39 @@
+Please refine the visual design of this app while keeping all existing functionality, screens, and component structure exactly as they are (Terms lookup, Daily Check-in, Timeline with Feed/Summary, Profile, bottom tab nav). Do not change any logic, state, or copy — only elevate the visual polish.
+
+DESIGN SYSTEM TO KEEP AND REFINE (don't replace it, just make it feel more premium/polished):
+
+Colors:
+- Primary/brand teal: #2A9D8F
+- Page background: #E5EFEE
+- App/content background: #F4F9F8
+- Card background: #FFFFFF, border #D5ECEA
+- Section dividers: #E8F2F1
+- Tinted secondary cards: #EEF8F7
+- Heading text: #182625
+- Body/secondary text: #5A8480
+- Faint labels/placeholders/timestamps: #88BCBA
+- Category tag colors: Rhythm #E2F2F0/#1B7B72, Function #E2EDF5/#1B5C8A, Symptom #EDF2E2/#4A6E1E, Measurement #F2EDE2/#7A5E1B, Condition #EEE8F5/#693A8F
+
+Typography:
+- Plus Jakarta Sans throughout
+- Bold headings 22–26px
+- Body text 14–15px
+- Uppercase bold eyebrow labels at 10px with wide letter-spacing
+
+Component style:
+- White cards, rounded-2xl (16px), 1px border, generous padding
+- Full-width rounded-2xl buttons, teal fill for primary actions, light teal fill for "done/saved" states
+- Rounded pill chips and tags
+- Custom toggle switches, teal when active
+- Bottom nav: white bar, active tab tinted teal
+- Soft press feedback (scale down slightly on tap)
+
+WHAT I WANT IMPROVED:
+- Stronger visual hierarchy between sections (more intentional spacing rhythm, not just uniform padding everywhere)
+- More refined use of shadow/depth so cards and primary buttons feel less flat, without looking heavy
+- Smoother, more polished micro-interactions on taps, toggles, and screen transitions
+- More visual interest in empty states and the check-in success screen (currently just emoji + text)
+- Better balance of whitespace so the layout feels calmer and less boxy
+- Consistent icon style refinement (currently basic stroke SVGs)
+
+Keep the teal/seafoam healthcare feel — just make the execution feel more crafted and premium.
