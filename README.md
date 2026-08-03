@@ -1,4 +1,4 @@
-# CardioClear
+# HeartWell
 
 A wellbeing app for cardiac patients and their families — helping people understand medical terms in plain language, track symptoms and mood, and feel more prepared going into appointments.
 
