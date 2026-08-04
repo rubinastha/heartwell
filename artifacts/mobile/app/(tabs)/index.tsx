@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Modal,
   Platform,
@@ -39,6 +40,46 @@ export default function LookupScreen() {
   const [personalNote, setPersonalNote] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // AI-generated explanations
+  const [aiExplanation, setAiExplanation] = useState<{
+    explanation: string;
+    whyItMatters: string;
+  } | null>(null);
+  const [loadingExplain, setLoadingExplain] = useState(false);
+  const aiCacheRef = useRef<Map<string, { explanation: string; whyItMatters: string }>>(new Map());
+
+  useEffect(() => {
+    if (!selectedTerm) {
+      setAiExplanation(null);
+      setLoadingExplain(false);
+      return;
+    }
+    const cached = aiCacheRef.current.get(selectedTerm.id);
+    if (cached) {
+      setAiExplanation(cached);
+      return;
+    }
+    setAiExplanation(null);
+    setLoadingExplain(true);
+    const domain = process.env.EXPO_PUBLIC_DOMAIN;
+    const base = domain ? `https://${domain}` : '';
+    fetch(`${base}/api/explain`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ term: selectedTerm.term, category: selectedTerm.category }),
+    })
+      .then((r) => r.json())
+      .then((data: { explanation?: string; whyItMatters?: string }) => {
+        if (data.explanation && data.whyItMatters) {
+          const result = { explanation: data.explanation, whyItMatters: data.whyItMatters };
+          aiCacheRef.current.set(selectedTerm.id, result);
+          setAiExplanation(result);
+        }
+      })
+      .catch(() => { /* silently fall back to static content */ })
+      .finally(() => setLoadingExplain(false));
+  }, [selectedTerm]);
+
   const filtered = useMemo(() => {
     if (!query.trim()) return cardiacTerms;
     const q = query.toLowerCase();
@@ -72,8 +113,8 @@ export default function LookupScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await saveWord(
       selectedTerm.term,
-      selectedTerm.explanation,
-      selectedTerm.whyItMatters,
+      aiExplanation?.explanation ?? selectedTerm.explanation,
+      aiExplanation?.whyItMatters ?? selectedTerm.whyItMatters,
       personalNote,
     );
     setSaving(false);
@@ -217,8 +258,15 @@ export default function LookupScreen() {
               <Text style={s.modalTitle}>{selectedTerm.term}</Text>
 
               <View style={s.section}>
-                <Text style={s.sectionLabel}>What it means</Text>
-                <Text style={s.sectionText}>{selectedTerm.explanation}</Text>
+                <View style={s.sectionLabelRow}>
+                  <Text style={s.sectionLabel}>What it means</Text>
+                  {loadingExplain && (
+                    <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 8 }} />
+                  )}
+                </View>
+                <Text style={s.sectionText}>
+                  {aiExplanation?.explanation ?? selectedTerm.explanation}
+                </Text>
               </View>
 
               <View style={[s.section, s.whyCard]}>
@@ -232,7 +280,9 @@ export default function LookupScreen() {
                     Why this matters
                   </Text>
                 </View>
-                <Text style={s.sectionText}>{selectedTerm.whyItMatters}</Text>
+                <Text style={s.sectionText}>
+                  {aiExplanation?.whyItMatters ?? selectedTerm.whyItMatters}
+                </Text>
               </View>
 
               {isSaved &&
@@ -451,6 +501,11 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       lineHeight: 32,
     },
     section: { marginBottom: 20 },
+    sectionLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
     sectionLabel: {
       fontSize: 12,
       fontFamily: 'Inter_600SemiBold',
