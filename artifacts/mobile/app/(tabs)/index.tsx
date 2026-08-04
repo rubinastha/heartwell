@@ -140,7 +140,7 @@ export default function LookupScreen() {
     <View style={[s.container, { paddingTop: topPad }]}>
       {/* Header */}
       <View style={s.header}>
-        <Text style={s.headerTitle}>CardioClear</Text>
+        <Text style={s.headerTitle}>HeartWell</Text>
         <View style={s.searchBar}>
           <Feather name="search" size={18} color={colors.mutedForeground} />
           <TextInput
