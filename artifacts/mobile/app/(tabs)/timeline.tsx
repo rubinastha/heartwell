@@ -20,6 +20,7 @@ import { useColors } from '@/hooks/useColors';
 import { CheckIn, SavedWord, useAppData } from '@/context/AppDataContext';
 
 type Filter = 'all' | 'words' | 'checkins';
+type DateFilter = 'all' | '7d' | '30d';
 
 type TimelineEntry =
   | { type: 'word'; data: SavedWord; date: string }
@@ -121,6 +122,8 @@ export default function TimelineScreen() {
   const [activeView, setActiveView] = useState<'feed' | 'summary'>('feed');
   const [filter, setFilter] = useState<Filter>('all');
   const [detail, setDetail] = useState<TimelineEntry | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
 
   // Keep detail in sync after edits
   const refreshDetail = useCallback((entry: TimelineEntry) => {
@@ -144,10 +147,41 @@ export default function TimelineScreen() {
     else if (filter === 'words') combined = wordEntries;
     else combined = checkinEntries;
 
+    // Date filter
+    if (dateFilter !== 'all') {
+      const days = dateFilter === '7d' ? 7 : 30;
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      cutoff.setHours(0, 0, 0, 0);
+      combined = combined.filter((e) => new Date(e.date).getTime() >= cutoff.getTime());
+    }
+
+    // Keyword search
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      combined = combined.filter((e) => {
+        if (e.type === 'word') {
+          const w = e.data as SavedWord;
+          return (
+            w.term.toLowerCase().includes(q) ||
+            w.explanation.toLowerCase().includes(q) ||
+            (w.personalNote ?? '').toLowerCase().includes(q)
+          );
+        } else {
+          const c = e.data as CheckIn;
+          return (
+            MOOD_LABELS[c.mood].toLowerCase().includes(q) ||
+            c.symptoms.some((sym) => (SYMPTOM_LABELS[sym] ?? sym).toLowerCase().includes(q)) ||
+            (c.note ?? '').toLowerCase().includes(q)
+          );
+        }
+      });
+    }
+
     return combined.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     );
-  }, [savedWords, checkIns, filter]);
+  }, [savedWords, checkIns, filter, searchQuery, dateFilter]);
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const s = styles(colors);
@@ -156,6 +190,12 @@ export default function TimelineScreen() {
     { key: 'all', label: 'All' },
     { key: 'words', label: 'Saved Words' },
     { key: 'checkins', label: 'Check-ins' },
+  ];
+
+  const DATE_FILTERS: { key: DateFilter; label: string }[] = [
+    { key: 'all', label: 'Any time' },
+    { key: '7d', label: 'Last 7d' },
+    { key: '30d', label: 'Last 30d' },
   ];
 
   const handleDelete = useCallback(
@@ -220,20 +260,64 @@ export default function TimelineScreen() {
         </View>
 
         {activeView === 'feed' && (
-          <View style={[s.filterRow, { marginTop: 12 }]}>
-            {FILTERS.map((f) => (
-              <TouchableOpacity
-                key={f.key}
-                style={[s.filterChip, filter === f.key && s.filterChipActive]}
-                onPress={() => setFilter(f.key)}
-                activeOpacity={0.7}
-              >
-                <Text style={[s.filterChipText, filter === f.key && s.filterChipTextActive]}>
-                  {f.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <>
+            {/* Search bar */}
+            <View style={[s.searchRow, { marginTop: 12 }]}>
+              <View style={s.searchInputWrap}>
+                <Feather name="search" size={16} color={colors.mutedForeground} style={{ marginRight: 8 }} />
+                <TextInput
+                  style={s.searchInput}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder="Search entries…"
+                  placeholderTextColor={colors.mutedForeground}
+                  returnKeyType="search"
+                  clearButtonMode="while-editing"
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Feather name="x-circle" size={16} color={colors.mutedForeground} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
+            {/* Type + date filter chips */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginTop: 10 }}
+              contentContainerStyle={s.filterRow}
+            >
+              {FILTERS.map((f) => (
+                <TouchableOpacity
+                  key={f.key}
+                  style={[s.filterChip, filter === f.key && s.filterChipActive]}
+                  onPress={() => setFilter(f.key)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[s.filterChipText, filter === f.key && s.filterChipTextActive]}>
+                    {f.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <View style={s.filterDivider} />
+              {DATE_FILTERS.map((df) => (
+                <TouchableOpacity
+                  key={df.key}
+                  style={[s.filterChip, dateFilter === df.key && s.filterChipActive]}
+                  onPress={() => setDateFilter(df.key)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[s.filterChipText, dateFilter === df.key && s.filterChipTextActive]}>
+                    {df.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </>
         )}
       </View>
 
@@ -246,10 +330,18 @@ export default function TimelineScreen() {
           scrollEnabled={entries.length > 0}
           ListEmptyComponent={
             <View style={s.emptyState}>
-              <Feather name="clock" size={40} color={colors.mutedForeground} />
-              <Text style={s.emptyTitle}>Nothing here yet</Text>
+              <Feather
+                name={searchQuery || dateFilter !== 'all' ? 'search' : 'clock'}
+                size={40}
+                color={colors.mutedForeground}
+              />
+              <Text style={s.emptyTitle}>
+                {searchQuery || dateFilter !== 'all' ? 'No matches found' : 'Nothing here yet'}
+              </Text>
               <Text style={s.emptyText}>
-                {filter === 'words'
+                {searchQuery || dateFilter !== 'all'
+                  ? 'Try a different keyword or expand the date range'
+                  : filter === 'words'
                   ? 'Save words from the Lookup tab'
                   : filter === 'checkins'
                   ? 'Log a daily check-in to get started'
@@ -278,12 +370,13 @@ export default function TimelineScreen() {
                 activeOpacity={0.7}
               >
                 {item.type === 'word' ? (
-                  <WordEntry entry={item} colors={colors} />
+                  <WordEntry entry={item} colors={colors} searchQuery={searchQuery} />
                 ) : (
                   <CheckInEntry
                     entry={item}
                     colors={colors}
                     getWordById={getSavedWordById}
+                    searchQuery={searchQuery}
                   />
                 )}
                 <Text style={s.entryDate}>{formatDate(item.date)}</Text>
@@ -641,26 +734,85 @@ function CheckInEditForm({
   );
 }
 
+// ─── Highlight helper ────────────────────────────────────────────────────────
+
+function HighlightedText({
+  text,
+  query,
+  style,
+  highlightStyle,
+  numberOfLines,
+}: {
+  text: string;
+  query: string;
+  style?: object;
+  highlightStyle?: object;
+  numberOfLines?: number;
+}) {
+  const q = query.trim().toLowerCase();
+  if (!q) return <Text style={style} numberOfLines={numberOfLines}>{text}</Text>;
+
+  const parts: { text: string; highlight: boolean }[] = [];
+  let remaining = text;
+  let lowerRemaining = text.toLowerCase();
+  while (remaining.length > 0) {
+    const idx = lowerRemaining.indexOf(q);
+    if (idx === -1) {
+      parts.push({ text: remaining, highlight: false });
+      break;
+    }
+    if (idx > 0) parts.push({ text: remaining.slice(0, idx), highlight: false });
+    parts.push({ text: remaining.slice(idx, idx + q.length), highlight: true });
+    remaining = remaining.slice(idx + q.length);
+    lowerRemaining = lowerRemaining.slice(idx + q.length);
+  }
+
+  return (
+    <Text style={style} numberOfLines={numberOfLines}>
+      {parts.map((p, i) =>
+        p.highlight ? (
+          <Text key={i} style={highlightStyle}>{p.text}</Text>
+        ) : (
+          <Text key={i}>{p.text}</Text>
+        )
+      )}
+    </Text>
+  );
+}
+
 // ─── Read-only sub-components ────────────────────────────────────────────────
 
 function WordEntry({
   entry,
   colors,
+  searchQuery = '',
 }: {
   entry: TimelineEntry & { type: 'word' };
   colors: ReturnType<typeof useColors>;
+  searchQuery?: string;
 }) {
   const s = styles(colors);
+  const word = entry.data as SavedWord;
+  const highlight = { backgroundColor: colors.primary + '33', color: colors.primary, borderRadius: 3 };
   return (
     <View style={s.entryRow}>
       <View style={[s.entryIcon, { backgroundColor: colors.secondary }]}>
         <Ionicons name="bookmark" size={18} color={colors.primary} />
       </View>
       <View style={s.entryContent}>
-        <Text style={s.entryTitle}>{(entry.data as SavedWord).term}</Text>
-        <Text style={s.entryPreview} numberOfLines={1}>
-          {(entry.data as SavedWord).explanation}
-        </Text>
+        <HighlightedText
+          text={word.term}
+          query={searchQuery}
+          style={s.entryTitle}
+          highlightStyle={highlight}
+        />
+        <HighlightedText
+          text={word.explanation}
+          query={searchQuery}
+          style={s.entryPreview}
+          highlightStyle={highlight}
+          numberOfLines={1}
+        />
       </View>
       <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
     </View>
@@ -671,15 +823,23 @@ function CheckInEntry({
   entry,
   colors,
   getWordById,
+  searchQuery = '',
 }: {
   entry: TimelineEntry & { type: 'checkin' };
   colors: ReturnType<typeof useColors>;
   getWordById: (id: string) => SavedWord | undefined;
+  searchQuery?: string;
 }) {
   const checkin = entry.data as CheckIn;
   const mood = checkin.mood;
   const moodColor = MOOD_COLORS[mood] ?? colors.mutedForeground;
   const s = styles(colors);
+  const highlight = { backgroundColor: colors.primary + '33', color: colors.primary, borderRadius: 3 };
+  const previewText = checkin.symptoms.length > 0
+    ? checkin.symptoms.map((sym) => SYMPTOM_LABELS[sym]).join(', ')
+    : checkin.note
+    ? checkin.note
+    : 'No symptoms reported';
   return (
     <View style={s.entryRow}>
       <View style={[s.entryIcon, { backgroundColor: moodColor + '20' }]}>
@@ -690,17 +850,19 @@ function CheckInEntry({
         />
       </View>
       <View style={s.entryContent}>
-        <Text style={s.entryTitle}>
-          Feeling {MOOD_LABELS[mood]}
-          {checkin.tookMedication ? ' · Medication' : ''}
-        </Text>
-        <Text style={s.entryPreview} numberOfLines={1}>
-          {checkin.symptoms.length > 0
-            ? checkin.symptoms.map((s) => SYMPTOM_LABELS[s]).join(', ')
-            : checkin.note
-            ? checkin.note
-            : 'No symptoms reported'}
-        </Text>
+        <HighlightedText
+          text={`Feeling ${MOOD_LABELS[mood]}${checkin.tookMedication ? ' · Medication' : ''}`}
+          query={searchQuery}
+          style={s.entryTitle}
+          highlightStyle={highlight}
+        />
+        <HighlightedText
+          text={previewText}
+          query={searchQuery}
+          style={s.entryPreview}
+          highlightStyle={highlight}
+          numberOfLines={1}
+        />
       </View>
       <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
     </View>
@@ -1057,7 +1219,32 @@ const styles = (colors: ReturnType<typeof useColors>) =>
       color: colors.foreground,
       marginBottom: 14,
     },
-    filterRow: { flexDirection: 'row', gap: 8 },
+    searchRow: { flexDirection: 'row', alignItems: 'center' },
+    searchInputWrap: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.muted,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 14,
+      fontFamily: 'Inter_400Regular',
+      color: colors.foreground,
+      padding: 0,
+    },
+    filterRow: { flexDirection: 'row', gap: 8, paddingBottom: 2 },
+    filterDivider: {
+      width: 1,
+      backgroundColor: colors.border,
+      marginHorizontal: 4,
+      borderRadius: 1,
+    },
     filterChip: {
       paddingHorizontal: 14,
       paddingVertical: 7,
