@@ -16,7 +16,7 @@ Patients diagnosed with a cardiac condition often leave appointments without a c
 
 ## Status
 
-Early-stage MVP / prototype, built to validate the core concept with real users before further development. See [`heartwell_prd.md`](./prd-cardioclear.md) for the full product requirements and success metrics, and [`project-brief.md`](./project-brief.md) for the problem background and research behind it.
+Early-stage MVP / prototype, built to validate the core concept with real users before further development. See [`heartwell_prd.md`](./heartwell_prd.md) for the full product requirements and success metrics, and [`project-brief.md`](./project-brief.md) for the problem background and research behind it.
 
 Not currently built for production use with real patient data — no authentication, and data handling hasn't been reviewed for HIPAA compliance.
 
