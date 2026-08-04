@@ -36,10 +36,10 @@ Then open the local URL shown in your terminal (typically `http://localhost:3000
 
 ## Roadmap
 
-- [ ] User testing with a small group of patients
-- [ ] Define a lightweight clinician review process for term definitions
+- [ ] User testing with a small group of users
+- [ ] Implement Anthropic API for AI-based term-search
 - [ ] Revisit scope for v2 based on testing feedback
 
 ## License
 
-TBD
+MIT
