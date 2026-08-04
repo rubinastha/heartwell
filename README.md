@@ -4,7 +4,7 @@ A wellbeing app for cardiac patients and their families — helping people under
 
 ## Why this exists
 
-Patients diagnosed with a cardiac condition often leave appointments without a clear grasp of their diagnosis or what comes next. Between visits, there's no easy way to track how symptoms, mood, or medication adherence are changing — and that information gap often pushes people toward unreliable self-diagnosis online. CardioClear aims to close that gap with plain-language explanations and a simple daily check-in, tied together in one connected loop.
+Patients diagnosed with a cardiac condition often leave appointments without a clear grasp of their diagnosis or what comes next. Between visits, there's no easy way to track how symptoms, mood, or medication adherence are changing — and that information gap often pushes people toward unreliable self-diagnosis online. HeartWell aims to close that gap with plain-language explanations and a simple daily check-in, tied together in one connected loop.
 
 ## Features
 
